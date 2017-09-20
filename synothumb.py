@@ -13,6 +13,7 @@ import os,sys,threading,time,subprocess,shlex
 from Queue import Queue
 from PIL import Image,ImageChops #PIL is provided by Pillow
 from io import StringIO
+from __future__ import print_function
 
 
 #########################################################################
