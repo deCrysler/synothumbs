@@ -21,7 +21,7 @@ from io import StringIO
 NumOfThreads=8  # Number of threads
 startTime=time.time()
 imageExtensions=['.jpg','.png','.jpeg','.tif','.bmp','.cr2'] #possibly add other raw types?
-videoExtensions=['.mov','.m4v','mp4']
+videoExtensions=['.mov','.m4v','.mp4']
 xlName="SYNOPHOTO_THUMB_XL.jpg" ; xlSize=(1280,1280) #XtraLarge
 lName="SYNOPHOTO_THUMB_L.jpg" ; lSize=(800,800) #Large
 bName="SYNOPHOTO_THUMB_B.jpg" ; bSize=(640,640) #Big
