@@ -187,7 +187,9 @@ def main():
                 if "@eaDir" not in path:
                     if file != "Thumbs.db" and file[0] != ".": # maybe remove
                         imageList.append(os.path.join(path,file))
+                        print('.', end='')
 
+    print ("")
     print ("[+] We have found %i images in search directory" % len(imageList))
     #input("\tPress Enter to continue or Ctrl-C to quit")
 
@@ -214,7 +216,9 @@ def main():
                 if "@eaDir" not in path:
                     if file != "Thumbs.db" and file[0] != ".": #maybe remove?
                         videoList.append(os.path.join(path,file))
+                        print('.', end='')
 
+    print ("")
     print ("[+] We have found %i videos in search directory" % len(videoList))
     #input("\tPress Enter to continue or Ctrl-C to quit")
 
