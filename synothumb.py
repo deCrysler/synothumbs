@@ -186,7 +186,7 @@ def main():
         for file in files:
             ext=os.path.splitext(file)[1].lower()
             if any(x in ext for x in imageExtensions):#check if extensions matches ext
-                if "@eaDir" not in path:
+                if "@eaDir" not in path and !os.path.isdir(os.path.join(path,'@eaDir',file)):
                     if file != "Thumbs.db" and file[0] != ".": # maybe remove
                         imageList.append(os.path.join(path,file))
                         sys.stdout.write('.')
@@ -215,7 +215,7 @@ def main():
         for file in files:
             ext=os.path.splitext(file)[1].lower()
             if any(x in ext for x in videoExtensions):#check if extensions matches ext
-                if "@eaDir" not in path:
+                if "@eaDir" not in path and !os.path.isdir(os.path.join(path,'@eaDir',file)):
                     if file != "Thumbs.db" and file[0] != ".": #maybe remove?
                         videoList.append(os.path.join(path,file))
                         sys.stdout.write('.')
