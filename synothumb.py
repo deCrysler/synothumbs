@@ -150,9 +150,10 @@ class convertVideo(threading.Thread):
                 # Create video thumbs
                 self.tempThumb=os.path.join("/tmp",os.path.splitext(self.videoName)[0]+".jpg")
                 if self.is_tool("ffmpeg"):
-                    self.ffmpegcmdThumb = "ffmpeg -loglevel panic -i '%s' -y -an -ss 00:00:03 -an -r 1 -vframes 1 '%s'" % (self.videoPath,self.tempThumb) # ffmpeg replaced by avconv on ubuntu
+                    #self.ffmpegcmdThumb = "ffmpeg -loglevel panic -i '%s' -y -an -ss 00:00:03 -an -r 1 -vframes 1 '%s'" % (self.videoPath,self.tempThumb) # ffmpeg replaced by avconv on ubuntu
+                    self.ffmpegcmdThumb = "ffmpeg -loglevel panic -i '%s' -y -vf thumbnail,scale=w=320:h=-1 -frames:v 1 '%s'" % (self.videoPath,self.tempThumb)
                 elif self.is_tool("avconv"):
-                    self.ffmpegcmdThumb = "avconv -loglevel panic -i '%s' -y -an -ss 00:00:03 -an -r 1 -vframes 1 '%s'" % (self.videoPath,self.tempThumb)
+                    self.ffmpegcmdThumb = "avconv -loglevel panic -i '%s' -y -vf thumbnail,scale=w=320:h=-1 -frames:v 1 '%s'" % (self.videoPath,self.tempThumb)
                 else: return False
                 self.ffmpegThumbproc = subprocess.Popen(shlex.split(self.ffmpegcmdThumb), stdout=subprocess.PIPE)
                 self.ffmpegThumbproc.communicate()[0]
