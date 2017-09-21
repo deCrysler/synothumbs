@@ -193,8 +193,10 @@ def main():
 
     print ("[+] Looking for images and videos and populating queues (This might take a while...)")
     for path, subFolders, files in os.walk(rootdir):
-        if "@eaDir" not in path:
-            print path
+        if "@eaDir" in subFolders: subFolders.remove('@eaDir')
+        
+        print path
+        if '@eaDir' not in path:
             for file in files:
                 ext=os.path.splitext(file)[1].lower()
                 added = '-'
