@@ -10,7 +10,7 @@
 # Dependencies: Pillow, libjpeg, libpng, dcraw, ffmpeg
 # Supports:     jpg, png, tif, bmp, cr2 (raw), mov, m4v, mp4
 import os,sys,threading,time,subprocess,shlex
-from Queue import Queue
+from queue import Queue
 from PIL import Image,ImageChops #PIL is provided by Pillow
 from io import StringIO
 
@@ -146,9 +146,9 @@ class convertVideo(threading.Thread):
                     except:continue
                 # Check video conversion command and convert video to flv
                 if self.is_tool("ffmpeg"):
-                    self.ffmpegcmd = "ffmpeg -loglevel panic -i '%s' -y -ar 44100 -r 12 -ac 2 -f flv -qscale 5 -s 320x180 -aspect 320:180 '%s/SYNOPHOTO:FILM.flv'" % (self.videoPath,self.thumbDir) # ffmpeg replaced by avconv on ubuntu
+                    self.ffmpegcmd = "ffmpeg -loglevel panic -i '%s' -y -ar 44100 -r 12 -ac 2 -f flv -qscale 5 -s 320x180 -aspect 320:180 '%s/SYNOPHOTO_FILM.flv'" % (self.videoPath,self.thumbDir) # ffmpeg replaced by avconv on ubuntu
                 elif self.is_tool("avconv"):
-                    self.ffmpegcmd = "avconv -loglevel panic -i '%s' -y -ar 44100 -r 12 -ac 2 -f flv -qscale 5 -s 320x180 -aspect 320:180 '%s/SYNOPHOTO:FILM.flv'" % (self.videoPath,self.thumbDir)
+                    self.ffmpegcmd = "avconv -loglevel panic -i '%s' -y -ar 44100 -r 12 -ac 2 -f flv -qscale 5 -s 320x180 -aspect 320:180 '%s/SYNOPHOTO_FILM.flv'" % (self.videoPath,self.thumbDir)
                 else: return False
                 self.ffmpegproc = subprocess.Popen(shlex.split(self.ffmpegcmd), stdout=subprocess.PIPE)
                 self.ffmpegproc.communicate()[0]
@@ -161,15 +161,15 @@ class convertVideo(threading.Thread):
                 elif self.is_tool("avconv"):
                     self.ffmpegcmdThumb = "avconv -loglevel panic -i '%s' -y -vf thumbnail,scale=w=320:h=-1 -frames:v 1 '%s'" % (self.videoPath,self.tempThumb)
                 else: return False
-				try:
-					self.ffmpegThumbproc = subprocess.Popen(shlex.split(self.ffmpegcmdThumb), stdout=subprocess.PIPE)
-					self.ffmpegThumbproc.communicate()[0]
-					self.image=Image.open(self.tempThumb)
-					self.image.thumbnail(xlSize)
-					self.image.save(os.path.join(self.thumbDir,xlName))
-					self.image.thumbnail(mSize)
-					self.image.save(os.path.join(self.thumbDir,mName))
-				except:continue
+                try:
+                    self.ffmpegThumbproc = subprocess.Popen(shlex.split(self.ffmpegcmdThumb), stdout=subprocess.PIPE)
+                    self.ffmpegThumbproc.communicate()[0]
+                    self.image=Image.open(self.tempThumb)
+                    self.image.thumbnail(xlSize)
+                    self.image.save(os.path.join(self.thumbDir,xlName))
+                    self.image.thumbnail(mSize)
+                    self.image.save(os.path.join(self.thumbDir,mName))
+                except:continue
             else:
                 print ("    skip")
 
@@ -182,7 +182,7 @@ def main():
     queueIMG = Queue()
     queueVID = Queue()
     try:
-        rootdir=sys.argv[-1]
+        rootdir=sys.argv[1]
     except:
         print ("Usage: %s directory" % sys.argv[0])
         sys.exit(0)
@@ -196,8 +196,8 @@ def main():
     print ("[+] Looking for images and videos and populating queues (This might take a while...)")
     for path, subFolders, files in os.walk(rootdir):
         if "@eaDir" in subFolders: subFolders.remove('@eaDir')
-        
-        print path
+
+        print (path)
         if '@eaDir' not in path:
             for file in files:
                 ext=os.path.splitext(file)[1].lower()
@@ -209,7 +209,7 @@ def main():
                     elif any(x in ext for x in videoExtensions): #check if extensions matches ext
                         videoList.append(os.path.join(path,file))
                         added = 'v'
-                    
+
                 sys.stdout.write(added)
                 cnt = cnt + 1
 
@@ -217,12 +217,12 @@ def main():
                     sys.stdout.write('\n')
                     cnt = 0
                 sys.stdout.flush()
-            print ""
+            print ("")
 
 
     if len(imageList) > 0:
         print ("[+] We have found %i images in search directory" % len(imageList))
-        do_images = raw_input("\tDo you want to process them? (y/n) ") == "y"
+        do_images = input("\tDo you want to process them? (y/n) ") == "y"
 
         if do_images:
             #spawn a pool of threads
@@ -240,7 +240,7 @@ def main():
     
     if len(videoList) > 0:
         print ("[+] We have found %i videos in search directory" % len(videoList))
-        do_videos = raw_input("\tDo you want to process them? (y/n) ") == "y"
+        do_videos = input("\tDo you want to process them? (y/n) ") == "y"
 
         if do_videos:
             #spawn a pool of threads
