@@ -15,19 +15,21 @@ from PIL import Image,ImageChops #PIL is provided by Pillow
 from io import StringIO
 
 
+
+
 #########################################################################
 # Settings
 #########################################################################
 NumOfThreads=8  # Number of threads
 startTime=time.time()
 imageExtensions=['.jpg','.png','.jpeg','.tif','.bmp','.cr2'] #possibly add other raw types?
-videoExtensions=['.mov','.m4v','mp4']
-xlName="SYNOPHOTO_THUMB_XL.jpg" ; xlSize=(1280,1280) #XtraLarge
-lName="SYNOPHOTO_THUMB_L.jpg" ; lSize=(800,800) #Large
-bName="SYNOPHOTO_THUMB_B.jpg" ; bSize=(640,640) #Big
-mName="SYNOPHOTO_THUMB_M.jpg" ; mSize=(320,320) #Medium
-sName="SYNOPHOTO_THUMB_S.jpg" ; sSize=(160,160) #Small
-pName="SYNOPHOTO_THUMB_PREVIEW.jpg" ; pSize=(120,160) #Preview, keep ratio, pad with black
+videoExtensions=['.mov','.m4v','.mp4']
+xlName="SYNOPHOTO_THUMB_XL.jpg" ; oldxlName="SYNOPHOTO:THUMB_XL.jpg" ; xlSize=(1280,1280) #XtraLarge
+lName="SYNOPHOTO_THUMB_L.jpg" ; oldlName="SYNOPHOTO:THUMB_L.jpg" ; lSize=(800,800) #Large
+bName="SYNOPHOTO_THUMB_B.jpg" ; oldbName="SYNOPHOTO:THUMB_B.jpg" ; bSize=(640,640) #Big
+mName="SYNOPHOTO_THUMB_M.jpg" ; oldmName="SYNOPHOTO:THUMB_M.jpg" ; mSize=(320,320) #Medium
+sName="SYNOPHOTO_THUMB_S.jpg" ; oldsName="SYNOPHOTO:THUMB_S.jpg" ; sSize=(160,160) #Small
+pName="SYNOPHOTO_THUMB_PREVIEW.jpg" ; oldpName="SYNOPHOTO:THUMB_PREVIEW.jpg" ; pSize=(120,160) #Preview, keep ratio, pad with black
 
 #########################################################################
 # Images Class
@@ -43,8 +45,10 @@ class convertImage(threading.Thread):
             self.imagePath=self.queueIMG.get()
             self.imageDir,self.imageName = os.path.split(self.imagePath)
             self.thumbDir=os.path.join(self.imageDir,"@eaDir",self.imageName)
-            print ("  [-] Now working on %s" % (self.imagePath))
-            if os.path.isfile(os.path.join(self.thumbDir,xlName)) != 1:
+            status = "Skipping"
+
+            if not os.path.isfile(os.path.join(self.thumbDir,xlName)) and not os.path.isfile(os.path.join(self.thumbDir,oldxlName)):
+                status = "Working on"
                 if os.path.isdir(self.thumbDir) != 1:
                     try:os.makedirs(self.thumbDir)
                     except:continue
@@ -79,7 +83,7 @@ class convertImage(threading.Thread):
 
                         try:
                             if self.orientation in rotate_values:
-                                self.image=self.image.rotate(rotate_values[self.orientation])
+                                self.image=self.image.rotate(rotate_values[self.orientation], expand=True)
                         except:
                             pass
 
@@ -108,6 +112,8 @@ class convertImage(threading.Thread):
                     ## image file is corrupt / can't be read / or we can't write to the mounted share
                     with open(self.badImageFileList, "a") as badFileList:
                         badFileList.write(self.imagePath + '\n')
+            
+            print ("  [- | %s] %s %s" % (time.strftime('%X'), status, self.imagePath))
 
             self.queueIMG.task_done()
 
@@ -133,8 +139,8 @@ class convertVideo(threading.Thread):
             self.videoPath=self.queueVID.get()
             self.videoDir,self.videoName = os.path.split(self.videoPath)
             self.thumbDir=os.path.join(self.videoDir,"@eaDir",self.videoName)
-            if os.path.isfile(os.path.join(self.thumbDir,xlName)) != 1:
-                print ("  [-] Now working on %s" % (self.videoPath))
+            print ("  [- | %s] Now working on %s" % (time.strftime('%X'), self.videoPath)) 
+            if not os.path.isfile(os.path.join(self.thumbDir,xlName)) and not os.path.isfile(os.path.join(self.thumbDir,oldxlName)):
                 if os.path.isdir(self.thumbDir) != 1:
                     try:os.makedirs(self.thumbDir)
                     except:continue
@@ -150,19 +156,23 @@ class convertVideo(threading.Thread):
                 # Create video thumbs
                 self.tempThumb=os.path.join("/tmp",os.path.splitext(self.videoName)[0]+".jpg")
                 if self.is_tool("ffmpeg"):
-                    self.ffmpegcmdThumb = "ffmpeg -loglevel panic -i '%s' -y -an -ss 00:00:01 -an -r 1 -vframes 1 '%s'" % (self.videoPath,self.tempThumb) # ffmpeg replaced by avconv on ubuntu
+                    #self.ffmpegcmdThumb = "ffmpeg -loglevel panic -i '%s' -y -an -ss 00:00:03 -an -r 1 -vframes 1 '%s'" % (self.videoPath,self.tempThumb) # ffmpeg replaced by avconv on ubuntu
+                    self.ffmpegcmdThumb = "ffmpeg -loglevel panic -i '%s' -y -vf thumbnail,scale=w=320:h=-1 -frames:v 1 '%s'" % (self.videoPath,self.tempThumb)
                 elif self.is_tool("avconv"):
-                    self.ffmpegcmdThumb = "avconv -loglevel panic -i '%s' -y -an -ss 00:00:01 -an -r 1 -vframes 1 '%s'" % (self.videoPath,self.tempThumb)
+                    self.ffmpegcmdThumb = "avconv -loglevel panic -i '%s' -y -vf thumbnail,scale=w=320:h=-1 -frames:v 1 '%s'" % (self.videoPath,self.tempThumb)
                 else: return False
-                try:
-                    self.ffmpegThumbproc = subprocess.Popen(shlex.split(self.ffmpegcmdThumb), stdout=subprocess.PIPE)
-                    self.ffmpegThumbproc.communicate()[0]
-                    self.image=Image.open(self.tempThumb)
-                    self.image.thumbnail(xlSize)
-                    self.image.save(os.path.join(self.thumbDir,xlName))
-                    self.image.thumbnail(mSize)
-                    self.image.save(os.path.join(self.thumbDir,mName))
-                except:continue
+				try:
+					self.ffmpegThumbproc = subprocess.Popen(shlex.split(self.ffmpegcmdThumb), stdout=subprocess.PIPE)
+					self.ffmpegThumbproc.communicate()[0]
+					self.image=Image.open(self.tempThumb)
+					self.image.thumbnail(xlSize)
+					self.image.save(os.path.join(self.thumbDir,xlName))
+					self.image.thumbnail(mSize)
+					self.image.save(os.path.join(self.thumbDir,mName))
+				except:continue
+            else:
+                print ("    skip")
+
             self.queueVID.task_done()
 
 #########################################################################
@@ -172,66 +182,81 @@ def main():
     queueIMG = Queue()
     queueVID = Queue()
     try:
-        rootdir=sys.argv[1]
+        rootdir=sys.argv[-1]
     except:
         print ("Usage: %s directory" % sys.argv[0])
         sys.exit(0)
 
     # Finds all images of type in extensions array
     imageList=[]
-    print ("[+] Looking for images and populating queue (This might take a while...)")
-    for path, subFolders, files in os.walk(rootdir):
-        for file in files:
-            ext=os.path.splitext(file)[1].lower()
-            if any(x in ext for x in imageExtensions):#check if extensions matches ext
-                if "@eaDir" not in path:
-                    if file != "Thumbs.db" and file[0] != ".": # maybe remove
-                        imageList.append(os.path.join(path,file))
-
-    print ("[+] We have found %i images in search directory" % len(imageList))
-    #input("\tPress Enter to continue or Ctrl-C to quit")
-
-    #spawn a pool of threads
-    for i in range(NumOfThreads): #number of threads
-        t=convertImage(queueIMG, os.path.join(rootdir, "synothumb-bad-file-list.txt"))
-        t.setDaemon(True)
-        t.start()
-
-    # populate queue with Images
-    for imagePath in imageList:
-        queueIMG.put(imagePath)
-
-    queueIMG.join()
-
-
-    # Finds all videos of type in extensions array
     videoList=[]
-    print ("[+] Looking for videos and populating queue (This might take a while...)")
+
+    cnt = 0
+
+    print ("[+] Looking for images and videos and populating queues (This might take a while...)")
     for path, subFolders, files in os.walk(rootdir):
-        for file in files:
-            ext=os.path.splitext(file)[1].lower()
-            if any(x in ext for x in videoExtensions):#check if extensions matches ext
-                if "@eaDir" not in path:
-                    if file != "Thumbs.db" and file[0] != ".": #maybe remove?
+        if "@eaDir" in subFolders: subFolders.remove('@eaDir')
+        
+        print path
+        if '@eaDir' not in path:
+            for file in files:
+                ext=os.path.splitext(file)[1].lower()
+                added = '-'
+                if file[0] != ".": # maybe remove
+                    if any(x in ext for x in imageExtensions):#check if extensions matches ext
+                        imageList.append(os.path.join(path,file))
+                        added = 'i'
+                    elif any(x in ext for x in videoExtensions): #check if extensions matches ext
                         videoList.append(os.path.join(path,file))
+                        added = 'v'
+                    
+                sys.stdout.write(added)
+                cnt = cnt + 1
 
-    print ("[+] We have found %i videos in search directory" % len(videoList))
-    #input("\tPress Enter to continue or Ctrl-C to quit")
+                if cnt == 80:
+                    sys.stdout.write('\n')
+                    cnt = 0
+                sys.stdout.flush()
+            print ""
 
-    #spawn a pool of threads
-    for i in range(NumOfThreads): #number of threads
-        v=convertVideo(queueVID)
-        v.setDaemon(True)
-        v.start()
 
-    # populate queueVID with Images
-    for videoPath in videoList:
-        queueVID.put(videoPath) # could we possibly put this instead of videoList.append(os.path.join(path,file))
+    if len(imageList) > 0:
+        print ("[+] We have found %i images in search directory" % len(imageList))
+        do_images = raw_input("\tDo you want to process them? (y/n) ") == "y"
 
-    queueVID.join()
+        if do_images:
+            #spawn a pool of threads
+            for i in range(NumOfThreads): #number of threads
+                t=convertImage(queueIMG, os.path.join(rootdir, "synothumb-bad-file-list.txt"))
+                t.setDaemon(True)
+                t.start()
+
+            # populate queue with Images
+            for imagePath in imageList:
+                queueIMG.put(imagePath)
+
+            queueIMG.join()
+
+    
+    if len(videoList) > 0:
+        print ("[+] We have found %i videos in search directory" % len(videoList))
+        do_videos = raw_input("\tDo you want to process them? (y/n) ") == "y"
+
+        if do_videos:
+            #spawn a pool of threads
+            for i in range(NumOfThreads): #number of threads
+                v=convertVideo(queueVID)
+                v.setDaemon(True)
+                v.start()
+
+            # populate queueVID with Images
+            for videoPath in videoList:
+                queueVID.put(videoPath) # could we possibly put this instead of videoList.append(os.path.join(path,file))
+
+            queueVID.join()
 
     endTime=time.time()
-    print ("Time to complete %i" % (endTime-startTime))
+    print ("Time to complete: %is" % (endTime-startTime))
 
     sys.exit(0)
 
