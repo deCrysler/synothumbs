@@ -61,8 +61,14 @@ class convertImage(threading.Thread):
                 self.thumbDir = os.path.join(self.imageDir, "@eaDir", self.imageName)
                 status = "Skipping"
 
-                if not os.path.isfile(os.path.join(self.thumbDir, smName)) and not os.path.isfile(
-                        os.path.join(self.thumbDir, oldsmName)):
+                if not os.path.isfile(os.path.join(self.thumbDir, pName)) or \
+                        not os.path.isfile(os.path.join(self.thumbDir, sName)) or \
+                        not os.path.isfile(os.path.join(self.thumbDir, smName)) or \
+                        not os.path.isfile(os.path.join(self.thumbDir, mName)) or \
+                        not os.path.isfile(os.path.join(self.thumbDir, bName)) or \
+                        not os.path.isfile(os.path.join(self.thumbDir, lName)) or \
+                        not os.path.isfile(os.path.join(self.thumbDir, xlName)):
+
                     status = "Working on"
                     if os.path.isdir(self.thumbDir) != 1:
                         try:
@@ -107,27 +113,34 @@ class convertImage(threading.Thread):
                     #### end of orientation part
 
                     try:
-                        self.image.thumbnail(xlSize, Image.ANTIALIAS)
-                        self.image.save(os.path.join(self.thumbDir, xlName), quality=90)
-                        self.image.thumbnail(lSize, Image.ANTIALIAS)
-                        self.image.save(os.path.join(self.thumbDir, lName), quality=90)
-                        self.image.thumbnail(bSize, Image.ANTIALIAS)
-                        self.image.save(os.path.join(self.thumbDir, bName), quality=90)
-                        self.image.thumbnail(mSize, Image.ANTIALIAS)
-                        self.image.save(os.path.join(self.thumbDir, mName), quality=90)
-                        self.image.thumbnail(smSize, Image.ANTIALIAS)
-                        self.image.save(os.path.join(self.thumbDir, smName), quality=90)
-                        self.image.thumbnail(sSize, Image.ANTIALIAS)
-                        self.image.save(os.path.join(self.thumbDir, sName), quality=90)
-                        self.image.thumbnail(pSize, Image.ANTIALIAS)
-                        # pad out image
-                        self.image_size = self.image.size
-                        self.preview_img = self.image.crop((0, 0, pSize[0], pSize[1]))
-                        self.offset_x = max((pSize[0] - self.image_size[0]) / 2, 0)
-                        self.offset_y = max((pSize[1] - self.image_size[1]) / 2, 0)
-                        self.preview_img = ImageChops.offset(self.preview_img, int(self.offset_x),
-                                                             int(self.offset_y))  # offset has to be integer, not float
-                        self.preview_img.save(os.path.join(self.thumbDir, pName), quality=90)
+                        if not os.path.isfile(os.path.join(self.thumbDir, xlName)):
+                            self.image.thumbnail(xlSize, Image.ANTIALIAS)
+                            self.image.save(os.path.join(self.thumbDir, xlName), quality=90)
+                        if not os.path.isfile(os.path.join(self.thumbDir, lName)):
+                            self.image.thumbnail(lSize, Image.ANTIALIAS)
+                            self.image.save(os.path.join(self.thumbDir, lName), quality=90)
+                        if not os.path.isfile(os.path.join(self.thumbDir, bName)):
+                            self.image.thumbnail(bSize, Image.ANTIALIAS)
+                            self.image.save(os.path.join(self.thumbDir, bName), quality=90)
+                        if not os.path.isfile(os.path.join(self.thumbDir, mName)):
+                            self.image.thumbnail(mSize, Image.ANTIALIAS)
+                            self.image.save(os.path.join(self.thumbDir, mName), quality=90)
+                        if not os.path.isfile(os.path.join(self.thumbDir, smName)):
+                            self.image.thumbnail(smSize, Image.ANTIALIAS)
+                            self.image.save(os.path.join(self.thumbDir, smName), quality=90)
+                        if not os.path.isfile(os.path.join(self.thumbDir, sName)):
+                            self.image.thumbnail(sSize, Image.ANTIALIAS)
+                            self.image.save(os.path.join(self.thumbDir, sName), quality=90)
+                        if not os.path.isfile(os.path.join(self.thumbDir, pName)):
+                            self.image.thumbnail(pSize, Image.ANTIALIAS)
+                            # pad out image
+                            self.image_size = self.image.size
+                            self.preview_img = self.image.crop((0, 0, pSize[0], pSize[1]))
+                            self.offset_x = max((pSize[0] - self.image_size[0]) / 2, 0)
+                            self.offset_y = max((pSize[1] - self.image_size[1]) / 2, 0)
+                            self.preview_img = ImageChops.offset(self.preview_img, int(self.offset_x),int(self.offset_y))  # offset has to be integer, not float
+                            self.preview_img.save(os.path.join(self.thumbDir, pName), quality=90)
+
                     except IOError:
                         ## image file is corrupt / can't be read / or we can't write to the mounted share
                         with open(self.badImageFileList, "a") as badFileList:
@@ -166,8 +179,9 @@ class convertVideo(threading.Thread):
                 self.videoDir, self.videoName = os.path.split(self.videoPath)
                 self.thumbDir = os.path.join(self.videoDir, "@eaDir", self.videoName)
                 print("  [- | %s] Now working on %s" % (time.strftime('%X'), self.videoPath))
-                if not os.path.isfile(os.path.join(self.thumbDir, xlName)) and not os.path.isfile(
-                        os.path.join(self.thumbDir, oldxlName)):
+                if not os.path.isfile(os.path.join(self.thumbDir, smName)) or \
+                        not os.path.isfile(os.path.join(self.thumbDir, mName)) or \
+                        not os.path.isfile(os.path.join(self.thumbDir, xlName)):
                     if os.path.isdir(self.thumbDir) != 1:
                         try:
                             os.makedirs(self.thumbDir)
@@ -182,8 +196,9 @@ class convertVideo(threading.Thread):
                             self.videoPath, self.thumbDir)
                     else:
                         return False
-                    self.ffmpegproc = subprocess.Popen(shlex.split(self.ffmpegcmd), stdout=subprocess.PIPE)
-                    self.ffmpegproc.communicate()[0]
+                    if not os.path.isfile(os.path.join(self.thumbDir, "SYNOPHOTO_FILM.flv")):
+                        self.ffmpegproc = subprocess.Popen(shlex.split(self.ffmpegcmd), stdout=subprocess.PIPE)
+                        self.ffmpegproc.communicate()[0]
 
                     # Create video thumbs
                     self.tempThumb = os.path.join("/tmp", os.path.splitext(self.videoName)[0] + ".jpg")
@@ -201,12 +216,15 @@ class convertVideo(threading.Thread):
                                                             stdout=subprocess.PIPE)
                     self.ffmpegThumbproc.communicate()[0]
                     self.image = Image.open(self.tempThumb)
-                    self.image.thumbnail(xlSize)
-                    self.image.save(os.path.join(self.thumbDir, xlName))
-                    self.image.thumbnail(mSize)
-                    self.image.save(os.path.join(self.thumbDir, mName))
-                    self.image.thumbnail(smSize)
-                    self.image.save(os.path.join(self.thumbDir, smName))
+                    if not os.path.isfile(os.path.join(self.thumbDir, xlName)):
+                        self.image.thumbnail(xlSize)
+                        self.image.save(os.path.join(self.thumbDir, xlName))
+                    if not os.path.isfile(os.path.join(self.thumbDir, mName)):
+                        self.image.thumbnail(mSize)
+                        self.image.save(os.path.join(self.thumbDir, mName))
+                    if not os.path.isfile(os.path.join(self.thumbDir, smName)):
+                        self.image.thumbnail(smSize)
+                        self.image.save(os.path.join(self.thumbDir, smName))
 
                 else:
                     print("    skip")
