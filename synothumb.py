@@ -17,7 +17,7 @@ from io import StringIO
 #########################################################################
 # Settings
 #########################################################################
-NumOfThreads = 8  # Number of threads
+NumOfThreads = 4  # Number of threads
 startTime = time.time()
 imageExtensions = ['.jpg', '.png', '.jpeg', '.tif', '.bmp', '.cr2']  # possibly add other raw types?
 videoExtensions = ['.mov', '.m4v', '.mp4']
@@ -74,6 +74,7 @@ class convertImage(threading.Thread):
                         try:
                             os.makedirs(self.thumbDir)
                         except:
+                            status = "No thumbDir"
                             continue
 
                     # Following if statements converts raw images using dcraw first
@@ -138,20 +139,23 @@ class convertImage(threading.Thread):
                             self.preview_img = self.image.crop((0, 0, pSize[0], pSize[1]))
                             self.offset_x = max((pSize[0] - self.image_size[0]) / 2, 0)
                             self.offset_y = max((pSize[1] - self.image_size[1]) / 2, 0)
-                            self.preview_img = ImageChops.offset(self.preview_img, int(self.offset_x),int(self.offset_y))  # offset has to be integer, not float
+                            self.preview_img = ImageChops.offset(self.preview_img, int(self.offset_x), int(
+                                self.offset_y))  # offset has to be integer, not float
                             self.preview_img.save(os.path.join(self.thumbDir, pName), quality=90)
 
                     except IOError:
                         ## image file is corrupt / can't be read / or we can't write to the mounted share
                         with open(self.badImageFileList, "a") as badFileList:
                             badFileList.write(self.imagePath + '\n')
+                        status = "badImageFile"
 
-                print("  [- | %s] %s %s" % (time.strftime('%X'), status, self.imagePath))
+
             except:
+                status = "unknown error"
                 continue
             finally:
+                print("  [- | %s] %s %s" % (time.strftime('%X'), status, self.imagePath))
                 self.queueIMG.task_done()
-
 
 
 #########################################################################
@@ -178,14 +182,17 @@ class convertVideo(threading.Thread):
                 self.videoPath = self.queueVID.get()
                 self.videoDir, self.videoName = os.path.split(self.videoPath)
                 self.thumbDir = os.path.join(self.videoDir, "@eaDir", self.videoName)
-                print("  [- | %s] Now working on %s" % (time.strftime('%X'), self.videoPath))
+                status = "Skipping"
                 if not os.path.isfile(os.path.join(self.thumbDir, smName)) or \
                         not os.path.isfile(os.path.join(self.thumbDir, mName)) or \
-                        not os.path.isfile(os.path.join(self.thumbDir, xlName)):
+                        not os.path.isfile(os.path.join(self.thumbDir, xlName)) or \
+                        not os.path.isfile(os.path.join(self.thumbDir, "SYNOPHOTO_FILM.flv")):
+                    status = "Working on"
                     if os.path.isdir(self.thumbDir) != 1:
                         try:
                             os.makedirs(self.thumbDir)
                         except:
+                            status = "No thumbDir"
                             continue
                     # Check video conversion command and convert video to flv
                     if self.is_tool("ffmpeg"):
@@ -226,13 +233,13 @@ class convertVideo(threading.Thread):
                         self.image.thumbnail(smSize)
                         self.image.save(os.path.join(self.thumbDir, smName))
 
-                else:
-                    print("    skip")
+
             except:
+                status = "unknown error"
                 continue
             finally:
+                print("  [- | %s] %s %s" % (time.strftime('%X'), status, self.videoPath))
                 self.queueVID.task_done()
-
 
 
 #########################################################################
