@@ -17,7 +17,7 @@ from io import StringIO
 #########################################################################
 # Settings
 #########################################################################
-NumOfThreads = 4  # Number of threads
+NumOfThreads = 1  # Number of threads
 startTime = time.time()
 imageExtensions = ['.jpg', '.png', '.jpeg', '.tif', '.bmp', '.cr2']  # possibly add other raw types?
 videoExtensions = ['.mov', '.m4v', '.mp4']
@@ -79,7 +79,7 @@ class convertImage(threading.Thread):
 
                     # Following if statements converts raw images using dcraw first
                     if os.path.splitext(self.imagePath)[1].lower() == ".cr2":
-                        self.dcrawcmd = "dcraw -c -b 8 -q 0 -w -H 5 '%s'" % self.imagePath
+                        self.dcrawcmd = "dcraw -c -b 8 -q 0 -w -H 5 \"%s\"" % self.imagePath
                         self.dcraw_proc = subprocess.Popen(shlex.split(self.dcrawcmd), stdout=subprocess.PIPE)
                         self.raw = StringIO(self.dcraw_proc.communicate()[0])
                         self.image = Image.open(self.raw)
@@ -154,7 +154,8 @@ class convertImage(threading.Thread):
                 status = "unknown error"
                 continue
             finally:
-                print("  [- | %s] %s %s" % (time.strftime('%X'), status, self.imagePath))
+                if not (status == "Skipping"):
+                    print("  [- | %s] %s %s" % (time.strftime('%X'), status, self.imagePath))
                 self.queueIMG.task_done()
 
 
@@ -162,9 +163,10 @@ class convertImage(threading.Thread):
 # Video Class
 #########################################################################
 class convertVideo(threading.Thread):
-    def __init__(self, queueVID):
+    def __init__(self, queueVID, badVideoFileList):
         threading.Thread.__init__(self)
         self.queueVID = queueVID
+        self.badVideoFileList = badVideoFileList
 
     def is_tool(self, name):
         try:
@@ -196,10 +198,10 @@ class convertVideo(threading.Thread):
                             continue
                     # Check video conversion command and convert video to flv
                     if self.is_tool("ffmpeg"):
-                        self.ffmpegcmd = "ffmpeg -loglevel panic -i '%s' -y -ar 44100 -r 12 -ac 2 -f flv -qscale 5 -s 320x180 -aspect 320:180 '%s/SYNOPHOTO_FILM.flv'" % (
+                        self.ffmpegcmd = "ffmpeg -loglevel panic -i \"%s\" -y -ar 44100 -r 12 -ac 2 -f flv -qscale 5 -s 320x180 -aspect 320:180 \"%s/SYNOPHOTO_FILM.flv\"" % (
                             self.videoPath, self.thumbDir)  # ffmpeg replaced by avconv on ubuntu
                     elif self.is_tool("avconv"):
-                        self.ffmpegcmd = "avconv -loglevel panic -i '%s' -y -ar 44100 -r 12 -ac 2 -f flv -qscale 5 -s 320x180 -aspect 320:180 '%s/SYNOPHOTO_FILM.flv'" % (
+                        self.ffmpegcmd = "avconv -loglevel panic -i \"%s\" -y -ar 44100 -r 12 -ac 2 -f flv -qscale 5 -s 320x180 -aspect 320:180 \"%s/SYNOPHOTO_FILM.flv\"" % (
                             self.videoPath, self.thumbDir)
                     else:
                         return False
@@ -208,37 +210,44 @@ class convertVideo(threading.Thread):
                         self.ffmpegproc.communicate()[0]
 
                     # Create video thumbs
-                    self.tempThumb = os.path.join("/tmp", os.path.splitext(self.videoName)[0] + ".jpg")
+                    self.tempThumb = os.path.join("tmp", os.path.splitext(self.videoName)[0] + ".jpg")
                     if self.is_tool("ffmpeg"):
-                        # self.ffmpegcmdThumb = "ffmpeg -loglevel panic -i '%s' -y -an -ss 00:00:03 -an -r 1 -vframes 1 '%s'" % (self.videoPath,self.tempThumb) # ffmpeg replaced by avconv on ubuntu
-                        self.ffmpegcmdThumb = "ffmpeg -loglevel panic -i '%s' -y -vf thumbnail,scale=w=320:h=-1 -frames:v 1 '%s'" % (
+                        #self.ffmpegcmdThumb = "ffmpeg -loglevel panic -i '%s' -y -an -ss 00:00:01 -an -r 1 -vframes 1 '%s'" % (self.videoPath, self.tempThumb) # ffmpeg replaced by avconv on ubuntu
+                        self.ffmpegcmdThumb = "ffmpeg -loglevel panic -i \"%s\" -y -vf thumbnail,scale=w=320:h=-1 -frames:v 1 \"%s\"" % (
                             self.videoPath, self.tempThumb)
                     elif self.is_tool("avconv"):
-                        self.ffmpegcmdThumb = "avconv -loglevel panic -i '%s' -y -vf thumbnail,scale=w=320:h=-1 -frames:v 1 '%s'" % (
+                        self.ffmpegcmdThumb = "avconv -loglevel panic -i \"%s\" -y -vf thumbnail,scale=w=320:h=-1 -frames:v 1 \"%s\"" % (
                             self.videoPath, self.tempThumb)
                     else:
                         return False
 
-                    self.ffmpegThumbproc = subprocess.Popen(shlex.split(self.ffmpegcmdThumb),
-                                                            stdout=subprocess.PIPE)
-                    self.ffmpegThumbproc.communicate()[0]
-                    self.image = Image.open(self.tempThumb)
-                    if not os.path.isfile(os.path.join(self.thumbDir, xlName)):
-                        self.image.thumbnail(xlSize)
-                        self.image.save(os.path.join(self.thumbDir, xlName))
-                    if not os.path.isfile(os.path.join(self.thumbDir, mName)):
-                        self.image.thumbnail(mSize)
-                        self.image.save(os.path.join(self.thumbDir, mName))
-                    if not os.path.isfile(os.path.join(self.thumbDir, smName)):
-                        self.image.thumbnail(smSize)
-                        self.image.save(os.path.join(self.thumbDir, smName))
+                    try:
+                        self.ffmpegThumbproc = subprocess.Popen(shlex.split(self.ffmpegcmdThumb),
+                                                                stdout=subprocess.PIPE)
+                        self.ffmpegThumbproc.communicate()[0]
+                        self.image = Image.open(self.tempThumb)
+                        if not os.path.isfile(os.path.join(self.thumbDir, xlName)):
+                            self.image.thumbnail(xlSize)
+                            self.image.save(os.path.join(self.thumbDir, xlName))
+                        if not os.path.isfile(os.path.join(self.thumbDir, mName)):
+                            self.image.thumbnail(mSize)
+                            self.image.save(os.path.join(self.thumbDir, mName))
+                        if not os.path.isfile(os.path.join(self.thumbDir, smName)):
+                            self.image.thumbnail(smSize)
+                            self.image.save(os.path.join(self.thumbDir, smName))
+                    except:
+                        ## image file is corrupt / can't be read / or we can't write to the mounted share
+                        with open(self.badVideoFileList, "a") as badFileList:
+                            badFileList.write(self.videoPath + '\n')
+                        status = "badVideoFile"
 
 
             except:
                 status = "unknown error"
                 continue
             finally:
-                print("  [- | %s] %s %s" % (time.strftime('%X'), status, self.videoPath))
+                if not (status == "Skipping"):
+                    print("  [- | %s] %s %s" % (time.strftime('%X'), status, self.videoPath))
                 self.queueVID.task_done()
 
 
@@ -293,7 +302,7 @@ def main():
         if do_images:
             # spawn a pool of threads
             for i in range(NumOfThreads):  # number of threads
-                t = convertImage(queueIMG, os.path.join(rootdir, "synothumb-bad-file-list.txt"))
+                t = convertImage(queueIMG, os.path.join(rootdir, "synothumb-bad-image-file-list.txt"))
                 t.setDaemon(True)
                 t.start()
 
@@ -310,7 +319,7 @@ def main():
         if do_videos:
             # spawn a pool of threads
             for i in range(NumOfThreads):  # number of threads
-                v = convertVideo(queueVID)
+                v = convertVideo(queueVID, os.path.join(rootdir, "synothumb-bad-video-file-list.txt"))
                 v.setDaemon(True)
                 v.start()
 
