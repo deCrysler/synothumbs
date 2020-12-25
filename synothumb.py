@@ -17,7 +17,7 @@ from io import StringIO
 #########################################################################
 # Settings
 #########################################################################
-NumOfThreads = 1  # Number of threads
+NumOfThreads = 8  # Number of threads
 startTime = time.time()
 imageExtensions = ['.jpg', '.png', '.jpeg', '.tif', '.bmp', '.cr2']  # possibly add other raw types?
 videoExtensions = ['.mov', '.m4v', '.mp4']
@@ -45,22 +45,51 @@ pSize = (120, 160)  # Preview, keep ratio, pad with black
 
 
 #########################################################################
+# Print iterations progress
+#########################################################################
+def printProgressBar (iteration, total, prefix = '', suffix = '', decimals = 1, length = 100, fill = '█', printEnd = "\r",
+                      iteration_old=0):
+    """
+    Call in a loop to create terminal progress bar
+    @params:
+        iteration   - Required  : current iteration (Int)
+        total       - Required  : total iterations (Int)
+        prefix      - Optional  : prefix string (Str)
+        suffix      - Optional  : suffix string (Str)
+        decimals    - Optional  : positive number of decimals in percent complete (Int)
+        length      - Optional  : character length of bar (Int)
+        fill        - Optional  : bar fill character (Str)
+        printEnd    - Optional  : end character (e.g. "\r", "\r\n") (Str)
+    """
+    if iteration > iteration_old:
+        iteration_old = iteration
+    #if (iteration % (total/1000)) == 0:
+        percent = ("{0:." + str(decimals) + "f}").format(100 * (iteration / float(total)))
+        filledLength = int(length * iteration // total)
+        bar = fill * filledLength + '-' * (length - filledLength)
+        print(f'\r{prefix} |{bar}| {percent}% {suffix}', end = printEnd)
+    # Print New Line on Complete
+    if iteration == total:
+        print()
+
+#########################################################################
 # Images Class
 #########################################################################
 class convertImage(threading.Thread):
-    def __init__(self, queueIMG, badImageFileList):
+    def __init__(self, queueIMG, badImageFileList, totalFiles):
         threading.Thread.__init__(self)
         self.queueIMG = queueIMG
         self.badImageFileList = badImageFileList
+        self.totalFiles = totalFiles
 
     def run(self):
         while True:
             try:
-                self.imagePath = self.queueIMG.get()
+                self.imagePath, self.idx = self.queueIMG.get()
                 self.imageDir, self.imageName = os.path.split(self.imagePath)
                 self.thumbDir = os.path.join(self.imageDir, "@eaDir", self.imageName)
-                status = "Skipping"
 
+                status = "Skipping"
                 if not os.path.isfile(os.path.join(self.thumbDir, pName)) or \
                         not os.path.isfile(os.path.join(self.thumbDir, sName)) or \
                         not os.path.isfile(os.path.join(self.thumbDir, smName)) or \
@@ -156,6 +185,7 @@ class convertImage(threading.Thread):
             finally:
                 if not (status == "Skipping"):
                     print("  [- | %s] %s %s" % (time.strftime('%X'), status, self.imagePath))
+                printProgressBar(self.idx, self.totalFiles, prefix='Progress:', suffix='Complete', length=50)
                 self.queueIMG.task_done()
 
 
@@ -163,10 +193,11 @@ class convertImage(threading.Thread):
 # Video Class
 #########################################################################
 class convertVideo(threading.Thread):
-    def __init__(self, queueVID, badVideoFileList):
+    def __init__(self, queueVID, badVideoFileList, totalFiles):
         threading.Thread.__init__(self)
         self.queueVID = queueVID
         self.badVideoFileList = badVideoFileList
+        self.totalFiles = totalFiles
 
     def is_tool(self, name):
         try:
@@ -181,7 +212,7 @@ class convertVideo(threading.Thread):
     def run(self):
         while True:
             try:
-                self.videoPath = self.queueVID.get()
+                self.videoPath, self.idx = self.queueVID.get()
                 self.videoDir, self.videoName = os.path.split(self.videoPath)
                 self.thumbDir = os.path.join(self.videoDir, "@eaDir", self.videoName)
                 status = "Skipping"
@@ -248,6 +279,7 @@ class convertVideo(threading.Thread):
             finally:
                 if not (status == "Skipping"):
                     print("  [- | %s] %s %s" % (time.strftime('%X'), status, self.videoPath))
+                printProgressBar(self.idx, self.totalFiles, prefix='Progress:', suffix='Complete', length=50)
                 self.queueVID.task_done()
 
 
@@ -300,15 +332,19 @@ def main():
         do_images = input("\tDo you want to process them? (y/n) ") == "y"
 
         if do_images:
+            # Initial call to print 0% progress
+            printProgressBar(0, len(imageList), prefix='Progress:', suffix='Complete', length=50)
             # spawn a pool of threads
             for i in range(NumOfThreads):  # number of threads
-                t = convertImage(queueIMG, os.path.join(rootdir, "synothumb-bad-image-file-list.txt"))
+                t = convertImage(queueIMG, os.path.join(rootdir, "synothumb-bad-image-file-list.txt"), len(imageList))
                 t.setDaemon(True)
                 t.start()
 
+            idx = 0
             # populate queue with Images
             for imagePath in imageList:
-                queueIMG.put(imagePath)
+                idx = idx + 1
+                queueIMG.put((imagePath, idx))
 
             queueIMG.join()
 
@@ -317,16 +353,19 @@ def main():
         do_videos = input("\tDo you want to process them? (y/n) ") == "y"
 
         if do_videos:
+            # Initial call to print 0% progress
+            printProgressBar(0, len(videoList), prefix='Progress:', suffix='Complete', length=50)
+
             # spawn a pool of threads
             for i in range(NumOfThreads):  # number of threads
-                v = convertVideo(queueVID, os.path.join(rootdir, "synothumb-bad-video-file-list.txt"))
+                v = convertVideo(queueVID, os.path.join(rootdir, "synothumb-bad-video-file-list.txt"), len(videoList))
                 v.setDaemon(True)
                 v.start()
-
+            idx = 0
             # populate queueVID with Images
             for videoPath in videoList:
-                queueVID.put(
-                    videoPath)  # could we possibly put this instead of videoList.append(os.path.join(path,file))
+                idx = idx + 1
+                queueVID.put((videoPath, idx))  # could we possibly put this instead of videoList.append(os.path.join(path,file))
 
             queueVID.join()
 
